@@ -762,3 +762,913 @@ The constructor also includes a commented-out section for setting up a toolbar, 
 
 ---
 
+
+
+File: src/main/java/org/example/texteditor/custom/customButton.java
+package org.example.texteditor.custom;
+
+import javax.swing.*;
+import java.awt.*;
+
+public class customButton extends JButton {
+
+    private int radius = 40;  // Default radius for rounded corners
+
+    // Constructor with text
+    public customButton(String text) {
+        super(text);
+        setContentAreaFilled(false); // Disable default background filling
+        setFocusPainted(false); // Disable focus painted (highlighted border when clicked)
+        setBackground(new Color(255, 255, 255)); // Set default button background
+        //setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200))); // Set border
+        setFont(new Font("Arial", Font.TRUETYPE_FONT, 13)); // Set font for text
+    }
+
+    // Constructor to set custom radius
+    public customButton(String text, int radius) {
+        this(text);
+        this.radius = radius;
+    }
+
+//    @Override
+//    protected void paintComponent(Graphics g) {
+//        // Check if the button is pressed or hovered
+//        if (getModel().isPressed()) {
+//            g.setColor(new Color(200, 200, 200)); // Set color for pressed state
+//        } else if (getModel().isRollover()) {
+//            g.setColor(new Color(220, 220, 220)); // Set color for hover state
+//        } else {
+//            g.setColor(new Color(255, 255, 255)); // Default background color
+//        }
+//
+//        // Fill the rounded rectangle with custom color
+//        g.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+//
+//        // Call the superclass method to draw the text and icon
+//        super.paintComponent(g);
+//    }
+
+    @Override
+    public void setBackground(Color color) {
+        super.setBackground(color);
+    }
+
+    // Allow setting the button size
+    public void setButtonSize(int width, int height) {
+        setPreferredSize(new Dimension(width, height));
+    }
+
+    // Optional: Set the border radius dynamically
+    public void setRadius(int radius) {
+        this.radius = radius;
+    }
+}
+
+
+File: src/main/java/org/example/texteditor/utils/AutoIndent.java
+package org.example.texteditor.utils;
+
+import javax.swing.*;
+import javax.swing.text.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+
+public class AutoIndent {
+// Auto-indentation will adjust the indentation of the lines when the user presses "Enter" or pastes content.
+// It will check the previous line's indentation level and replicate it for the new line.
+    public static void enableAutoIndent(final JTextArea textArea) {
+        textArea.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    int caretPos = textArea.getCaretPosition();
+                    try {
+                        String previousLine = getPreviousLine(textArea, caretPos);
+                        String indent = getIndentation(previousLine);
+
+                        // Insert the same indentation at the beginning of the new line
+                        textArea.insert(indent, caretPos);
+                    } catch (BadLocationException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+    }
+
+    private static String getPreviousLine(JTextArea textArea, int caretPos) throws BadLocationException {
+        int lineStart = textArea.getLineOfOffset(caretPos) - 1;
+        if (lineStart < 0) {
+            return "";
+        }
+        int lineStartPos = textArea.getLineStartOffset(lineStart);
+        int lineEndPos = textArea.getLineEndOffset(lineStart);
+        return textArea.getText(lineStartPos, lineEndPos - lineStartPos).trim();
+    }
+
+    private static String getIndentation(String line) {
+        StringBuilder indent = new StringBuilder();
+        for (char c : line.toCharArray()) {
+            if (Character.isWhitespace(c)) {
+                indent.append(c);
+            } else {
+                break;
+            }
+        }
+        return indent.toString();
+    }
+}
+
+
+
+File: src/main/java/org/example/texteditor/utils/FileUtils.java
+package org.example.texteditor.utils;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
+public class FileUtils {
+
+    // Utility class to read and write files
+    public static String readFile(File file) {
+        StringBuilder content = new StringBuilder();
+        try (BufferedReader reader = Files.newBufferedReader(Paths.get(file.toURI()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line).append("\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return content.toString();
+    }
+
+    public static void writeFile(File file, String content) {
+        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(file.toURI()))) {
+            writer.write(content);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
+File: src/main/java/org/example/texteditor/ui/MenuBar.java
+package org.example.texteditor.ui;
+
+import org.example.texteditor.actions.FormatActions;
+import org.example.texteditor.actions.FileActions;
+import org.example.texteditor.actions.EditActions;
+import org.example.texteditor.actions.TextActions;
+
+import javax.swing.*;
+import java.awt.*;
+
+public class MenuBar extends JMenuBar {
+    public MenuBar(TextEditorPanel editorPanel, TextActions textActions) {
+        // Create File Menu
+        JMenu fileMenu = new JMenu("File");
+
+        // Open Item
+        JMenuItem openItem = new JMenuItem("Open");
+        openItem.addActionListener(new FileActions.OpenAction(editorPanel.getTextArea()));
+        fileMenu.add(openItem);
+
+        // Save Item
+        JMenuItem saveItem = new JMenuItem("Save");
+        saveItem.addActionListener(new FileActions.SaveAction(editorPanel.getTextArea()));
+        fileMenu.add(saveItem);
+        fileMenu.addSeparator();
+
+        // Exit Item
+        JMenuItem exitItem = new JMenuItem("Exit");
+        exitItem.addActionListener(new FileActions.ExitAction());
+        fileMenu.add(exitItem);
+
+        // Create Edit Menu
+        JMenu editMenu = new JMenu("Edit");
+
+        // Cut Item
+        JMenuItem cutItem = new JMenuItem("Cut");
+        cutItem.addActionListener(new EditActions.CutAction(editorPanel.getTextArea()));
+        editMenu.add(cutItem);
+
+        // Copy Item
+        JMenuItem copyItem = new JMenuItem("Copy");
+        copyItem.addActionListener(new EditActions.CopyAction(editorPanel.getTextArea()));
+        editMenu.add(copyItem);
+
+        // Paste Item
+        JMenuItem pasteItem = new JMenuItem("Paste");
+        pasteItem.addActionListener(new EditActions.PasteAction(editorPanel.getTextArea()));
+        editMenu.add(pasteItem);
+
+        // Add actions for Find and Replace
+        JMenuItem findItem = new JMenuItem(textActions.findAction);
+        editMenu.add(findItem);
+
+//        JMenuItem findNextItem = new JMenuItem(textActions.findNextAction); // Add Find Next
+//        editMenu.add(findNextItem);
+
+        JMenuItem replaceItem = new JMenuItem(textActions.replaceAction);
+        editMenu.add(replaceItem);
+
+        // Add the Edit Menu to the menu bar
+        add(fileMenu);
+        add(editMenu);
+
+        // Create Format Menu for styling actions
+        JMenu formatMenu = new JMenu("Format");
+
+        // Add Bold, Italic, Font Color, Font Family, and Font Size actions to the Format menu
+        formatMenu.add(new JMenuItem(new FormatActions.CleanUpAction(editorPanel.getTextArea())));
+        formatMenu.add(new JMenuItem(new FormatActions.BoldAction(editorPanel.getTextArea())));
+        formatMenu.add(new JMenuItem(new FormatActions.ItalicAction(editorPanel.getTextArea())));
+        formatMenu.add(new JMenuItem(new FormatActions.FontColorAction(editorPanel.getTextArea())));
+
+        // Add Font Family options
+        JMenu fontFamilyMenu = new JMenu("Font Family");
+        for (String fontFamily : GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()) {
+            fontFamilyMenu.add(new JMenuItem(new FormatActions.FontFamilyAction(editorPanel.getTextArea(), fontFamily)));
+        }
+        formatMenu.add(fontFamilyMenu);
+
+        // Add Font Size options
+        JMenu fontSizeMenu = new JMenu("Font Size");
+        Integer[] fontSizes = {12, 14, 16, 18, 20, 24, 28, 32};
+        for (int fontSize : fontSizes) {
+            fontSizeMenu.add(new JMenuItem(new FormatActions.FontSizeAction(editorPanel.getTextArea(), fontSize)));
+        }
+        formatMenu.add(fontSizeMenu);
+
+        // Add the Format menu to the menu bar
+        add(formatMenu);
+    }
+}
+
+
+File: src/main/java/org/example/texteditor/actions/EditActions.java
+package org.example.texteditor.actions;
+
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+
+public class EditActions {
+
+    // Handles actions like cut, copy, paste, undo, and redo
+    public static class CutAction extends AbstractAction {
+        private final JTextPane textPane;
+
+        public CutAction(JTextPane textPane) {
+            this.textPane = textPane;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            textPane.cut(); // Cut selected text
+        }
+    }
+
+    public static class CopyAction extends AbstractAction {
+        private final JTextPane textPane;
+
+        public CopyAction(JTextPane textPane) {
+            this.textPane = textPane;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            textPane.copy(); // Copy selected text
+        }
+    }
+
+    public static class PasteAction extends AbstractAction {
+        private final JTextPane textPane;
+
+        public PasteAction(JTextPane textPane) {
+            this.textPane = textPane;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            textPane.paste(); // Paste clipboard text
+        }
+    }
+}
+
+
+File: src/main/java/org/example/texteditor/actions/FormatActions.java
+package org.example.texteditor.actions;
+
+import javax.swing.*;
+import javax.swing.text.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+
+public class FormatActions {
+
+    // CleanUp Action
+    public static class CleanUpAction extends AbstractAction {
+        private final JTextPane textPane;
+
+        public CleanUpAction(JTextPane textPane) {
+            super("Clean Up");
+            this.textPane = textPane;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            textPane.setDocument(new DefaultStyledDocument());
+        }
+    }
+
+    // Bold Action
+    public static class BoldAction extends AbstractAction {
+        private final JTextPane textPane;
+
+        public BoldAction(JTextPane textPane) {
+            super("Bold");
+            this.textPane = textPane;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            StyledDocument doc = textPane.getStyledDocument();
+            int start = textPane.getSelectionStart();
+            int end = textPane.getSelectionEnd();
+
+            if (start != end) {  // If text is selected
+                SimpleAttributeSet style = new SimpleAttributeSet();
+                boolean isBold = StyleConstants.isBold(doc.getCharacterElement(start).getAttributes());
+
+                // Toggle bold style
+                StyleConstants.setBold(style, !isBold);
+                doc.setCharacterAttributes(start, end - start, style, false);
+                textPane.repaint();  // Ensure it repaints after applying style
+            } else {
+                System.out.println("No text selected.");
+            }
+        }
+    }
+
+    // Italic Action
+    public static class ItalicAction extends AbstractAction {
+        private final JTextPane textPane;
+
+        public ItalicAction(JTextPane textPane) {
+            super("Italic");
+            this.textPane = textPane;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            StyledDocument doc = textPane.getStyledDocument();
+            int start = textPane.getSelectionStart();
+            int end = textPane.getSelectionEnd();
+
+            if (start != end) {  // If text is selected
+                SimpleAttributeSet style = new SimpleAttributeSet();
+                boolean isItalic = StyleConstants.isItalic(doc.getCharacterElement(start).getAttributes());
+
+                // Toggle italic style
+                StyleConstants.setItalic(style, !isItalic);
+                doc.setCharacterAttributes(start, end - start, style, false);
+                textPane.repaint();  // Ensure it repaints after applying style
+            } else {
+                System.out.println("No text selected.");
+            }
+        }
+    }
+
+    // Font Color Action
+    public static class FontColorAction extends AbstractAction {
+        private final JTextPane textPane;
+
+        public FontColorAction(JTextPane textPane) {
+            super("Font Color");
+            this.textPane = textPane;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            Color color = JColorChooser.showDialog(null, "Choose Font Color", Color.BLACK);
+            if (color != null) {
+                StyledDocument doc = textPane.getStyledDocument();
+                int start = textPane.getSelectionStart();
+                int end = textPane.getSelectionEnd();
+
+                if (start != end) {  // If text is selected
+                    SimpleAttributeSet style = new SimpleAttributeSet();
+                    StyleConstants.setForeground(style, color);
+                    doc.setCharacterAttributes(start, end - start, style, false);
+                    textPane.repaint();  // Ensure it repaints after applying style
+                }
+            }
+        }
+    }
+
+    // Font Family Action
+    public static class FontFamilyAction extends AbstractAction {
+        private final JTextPane textPane;
+        private final String fontFamily;
+
+        public FontFamilyAction(JTextPane textPane, String fontFamily) {
+            super("Font Family: " + fontFamily);
+            this.textPane = textPane;
+            this.fontFamily = fontFamily;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            StyledDocument doc = textPane.getStyledDocument();
+            int start = textPane.getSelectionStart();
+            int end = textPane.getSelectionEnd();
+
+            if (start != end) {  // If text is selected
+                SimpleAttributeSet style = new SimpleAttributeSet();
+                StyleConstants.setFontFamily(style, fontFamily);
+                doc.setCharacterAttributes(start, end - start, style, false);
+                textPane.repaint();  // Ensure it repaints after applying style
+            }
+        }
+    }
+
+    // Font Size Action
+    public static class FontSizeAction extends AbstractAction {
+        private final JTextPane textPane;
+        private final int fontSize;
+
+        public FontSizeAction(JTextPane textPane, int fontSize) {
+            super("Font Size: " + fontSize);
+            this.textPane = textPane;
+            this.fontSize = fontSize;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            StyledDocument doc = textPane.getStyledDocument();
+            int start = textPane.getSelectionStart();
+            int end = textPane.getSelectionEnd();
+
+            if (start != end) {  // If text is selected
+                SimpleAttributeSet style = new SimpleAttributeSet();
+                StyleConstants.setFontSize(style, fontSize);
+                doc.setCharacterAttributes(start, end - start, style, false);
+                textPane.repaint();  // Ensure it repaints after applying style
+            }
+        }
+    }
+
+    // Call this method only once in the TextEditorPanel to set the document
+    public static void setStyledDocument(JTextPane textPane) {
+        textPane.setDocument(new DefaultStyledDocument());
+    }
+}
+
+
+File: src/main/java/org/example/texteditor/utils/SyntaxHighlighter.java
+package org.example.texteditor.utils;
+
+import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.*;
+import java.awt.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class SyntaxHighlighter {
+
+    private static final String[] KEYWORDS = {"public", "private", "class", "static", "void", "if", "else", "for", "while"};
+    private static final Pattern COMMENT_PATTERN = Pattern.compile("//.*|/\\*.*?\\*/", Pattern.DOTALL);
+    private static final Pattern STRING_PATTERN = Pattern.compile("\"(.*?)\"");
+
+    public static void enableSyntaxHighlighting(final JTextPane textPane) {
+        textPane.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                SwingUtilities.invokeLater(() -> highlightSyntax(textPane));
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                SwingUtilities.invokeLater(() -> highlightSyntax(textPane));
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                SwingUtilities.invokeLater(() -> highlightSyntax(textPane));
+            }
+        });
+    }
+
+    private static void highlightSyntax(JTextPane textPane) {
+        String text = textPane.getText();
+        StyledDocument doc = (StyledDocument) textPane.getDocument();
+        SimpleAttributeSet keywordAttr = createKeywordStyle();
+        SimpleAttributeSet commentAttr = createCommentStyle();
+        SimpleAttributeSet stringAttr = createStringStyle();
+
+        // Clear previous highlights
+        doc.setCharacterAttributes(0, text.length(), new SimpleAttributeSet(), true);
+
+        // Highlight keywords
+        for (String keyword : KEYWORDS) {
+            highlightPattern(doc, text, keyword, keywordAttr);
+        }
+
+        // Highlight comments
+        Matcher commentMatcher = COMMENT_PATTERN.matcher(text);
+        while (commentMatcher.find()) {
+            doc.setCharacterAttributes(commentMatcher.start(), commentMatcher.end() - commentMatcher.start(), commentAttr, false);
+        }
+
+        // Highlight strings
+        Matcher stringMatcher = STRING_PATTERN.matcher(text);
+        while (stringMatcher.find()) {
+            doc.setCharacterAttributes(stringMatcher.start(), stringMatcher.end() - stringMatcher.start(), stringAttr, false);
+        }
+    }
+
+    private static void highlightPattern(StyledDocument doc, String text, String pattern, SimpleAttributeSet attributes) {
+        Pattern p = Pattern.compile("\\b" + pattern + "\\b");
+        Matcher matcher = p.matcher(text);
+        while (matcher.find()) {
+            doc.setCharacterAttributes(matcher.start(), matcher.end() - matcher.start(), attributes, false);
+        }
+    }
+
+    private static SimpleAttributeSet createKeywordStyle() {
+        SimpleAttributeSet style = new SimpleAttributeSet();
+        StyleConstants.setForeground(style, Color.BLUE);  // Set color for keywords
+        StyleConstants.setBold(style, true);  // Make keywords bold
+        return style;
+    }
+
+    private static SimpleAttributeSet createCommentStyle() {
+        SimpleAttributeSet style = new SimpleAttributeSet();
+        StyleConstants.setForeground(style, Color.GREEN);  // Set color for comments
+        return style;
+    }
+
+    private static SimpleAttributeSet createStringStyle() {
+        SimpleAttributeSet style = new SimpleAttributeSet();
+        StyleConstants.setForeground(style, Color.ORANGE);  // Set color for strings
+        return style;
+    }
+}
+
+
+File: src/main/java/org/example/texteditor/actions/FileActions.java
+package org.example.texteditor.actions;
+
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.io.File;
+import org.example.texteditor.utils.FileUtils;
+
+public class FileActions {
+
+    // Handles actions like open, save, and exit
+    public static class OpenAction extends AbstractAction {
+        private final JTextPane textPane;
+
+        public OpenAction(JTextPane textPane) {
+            this.textPane = textPane;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            JFileChooser fileChooser = new JFileChooser();
+            int returnValue = fileChooser.showOpenDialog(null);
+            if (returnValue == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                String content = FileUtils.readFile(selectedFile);
+                textPane.setText(content); // Set the text in the JTextArea
+            }
+        }
+    }
+
+    public static class SaveAction extends AbstractAction {
+        private final JTextPane textPane;
+
+        public SaveAction(JTextPane textPane) {
+            this.textPane = textPane;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            JFileChooser fileChooser = new JFileChooser();
+            int returnValue = fileChooser.showSaveDialog(null);
+            if (returnValue == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                FileUtils.writeFile(selectedFile, textPane.getText()); // Save the text to file
+            }
+        }
+    }
+
+    public static class ExitAction extends AbstractAction {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            System.exit(0); // Close the application
+        }
+    }
+}
+
+
+File: src/main/java/org/example/texteditor/actions/TextActions.java
+package org.example.texteditor.actions;
+
+import org.example.texteditor.ui.TextEditorPanel;
+
+import javax.swing.*;
+import javax.swing.text.*;
+import javax.swing.undo.UndoManager;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.util.ArrayList;
+import java.util.List;
+
+public class TextActions {
+
+    private final TextEditorPanel editorPanel;
+    private final UndoManager undoManager;
+
+    // List to store positions of all occurrences of the search term
+    private List<Integer> searchResults = new ArrayList<>();
+    private int currentSearchIndex = -1;  // Track the current position of the search
+
+    public TextActions(TextEditorPanel editorPanel) {
+        this.editorPanel = editorPanel;
+        this.undoManager = new UndoManager();
+        enableUndoRedo();
+    }
+
+    // Action for Find
+    public Action findAction = new AbstractAction("Find") {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            String searchTerm = JOptionPane.showInputDialog("Enter text to find:");
+            if (searchTerm != null && !searchTerm.isEmpty()) {
+                searchResults.clear();  // Clear previous search results
+                currentSearchIndex = -1;  // Reset search index
+                highlightSearchTerm(searchTerm);
+            }
+        }
+    };
+
+    // Action for Find Next
+    public Action findNextAction = new AbstractAction("Find Next") {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (searchResults.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "No search results found.");
+                return;
+            }
+            // Unhighlight the previous search result before highlighting the next
+            removePreviousHighlight();
+
+            // Move to the next result (circular behavior)
+            currentSearchIndex = (currentSearchIndex + 1) % searchResults.size();
+            int start = searchResults.get(currentSearchIndex);
+            highlightSearchTermAtPosition(start, start + editorPanel.getTextArea().getText().length());
+        }
+    };
+
+    // Method to unhighlight the previously highlighted term
+    private void removePreviousHighlight() {
+        Highlighter highlighter = editorPanel.getTextArea().getHighlighter();
+        highlighter.removeAllHighlights(); // Clear all highlights
+    }
+
+    // Action for Replace
+    public Action replaceAction = new AbstractAction("Replace") {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            // Get the currently selected text
+            String selectedText = editorPanel.getTextArea().getSelectedText();
+
+            if (selectedText != null && !selectedText.isEmpty()) {
+                // Prompt user for the replacement text
+                String replaceTerm = JOptionPane.showInputDialog("Replace with:");
+
+                // If the user enters a replacement term, replace the selected text
+                if (replaceTerm != null && !replaceTerm.isEmpty()) {
+                    replaceSelectedText(selectedText, replaceTerm);
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "Please select a text to replace.");
+            }
+        }
+    };
+
+    // Method to replace the selected text with the replacement term
+    private void replaceSelectedText(String selectedText, String replaceTerm) {
+        try {
+            // Get the current document from the text area
+            JTextPane textArea = editorPanel.getTextArea();
+            Document doc = textArea.getDocument();
+
+            // Get the selection's start and end position
+            int selectionStart = textArea.getSelectionStart();
+            int selectionEnd = textArea.getSelectionEnd();
+
+            // Replace the selected text with the new text
+            doc.remove(selectionStart, selectionEnd - selectionStart);
+            doc.insertString(selectionStart, replaceTerm, null);
+
+            // Optional: Highlight the newly inserted text
+            // highlightSearchTermAtPosition(selectionStart, selectionStart + replaceTerm.length());
+
+        } catch (BadLocationException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    // Action for Undo
+    public Action undoAction = new AbstractAction("Undo") {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (undoManager.canUndo()) {
+                undoManager.undo();
+            }
+        }
+    };
+
+    // Action for Redo
+    public Action redoAction = new AbstractAction("Redo") {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (undoManager.canRedo()) {
+                undoManager.redo();
+            }
+        }
+    };
+
+    // Method to highlight the search term in the text area (highlight all matches)
+    private void highlightSearchTerm(String searchTerm) {
+        String content = editorPanel.getTextArea().getText();
+        Highlighter highlighter = editorPanel.getTextArea().getHighlighter();
+        Highlighter.HighlightPainter painter = new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW);
+
+        highlighter.removeAllHighlights(); // Clear previous highlights
+        int index = content.indexOf(searchTerm);
+        int matchCount = 0;
+
+        // Highlight all occurrences of the search term and store their positions
+        while (index >= 0) {
+            try {
+                highlighter.addHighlight(index, index + searchTerm.length(), painter);
+                searchResults.add(index);  // Store the position
+                matchCount++;
+                index = content.indexOf(searchTerm, index + 1); // Look for the next occurrence
+            } catch (BadLocationException ex) {
+                ex.printStackTrace();
+            }
+        }
+
+        // Show a message with the number of matches found
+        if (matchCount > 0) {
+            JOptionPane.showMessageDialog(null, matchCount + " occurrences found.");
+            highlighter.removeAllHighlights();
+        } else {
+            JOptionPane.showMessageDialog(null, "Text not found.");
+        }
+    }
+
+    // Method to highlight a specific search result based on position
+    private void highlightSearchTermAtPosition(int start, int end) {
+        try {
+            Highlighter highlighter = editorPanel.getTextArea().getHighlighter();
+            Highlighter.HighlightPainter painter = new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW);
+            highlighter.removeAllHighlights(); // Clear previous highlights
+            highlighter.addHighlight(start, end, painter);
+        } catch (BadLocationException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    // Method to enable Undo and Redo functionality
+    public void enableUndoRedo() {
+        editorPanel.getTextArea().getDocument().addUndoableEditListener(undoManager);
+    }
+}
+
+
+File: src/main/java/org/example/texteditor/ui/TextEditorPanel.java
+package org.example.texteditor.ui;
+
+import javax.swing.*;
+import javax.swing.text.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+public class TextEditorPanel extends JPanel {
+    private final JTextPane textPane;
+    private final StyledDocument doc;
+    // private final JMenuBar menuBar;
+
+    public TextEditorPanel() {
+        setLayout(new BorderLayout());
+
+        // Initialize JTextPane with scroll
+        textPane = new JTextPane();
+        textPane.setEditable(true); // Make it editable
+        textPane.setFont(new Font("Arial", Font.PLAIN, 14));
+        textPane.setDocument(new DefaultStyledDocument());
+        doc = textPane.getStyledDocument();
+        textPane.requestFocusInWindow();
+        textPane.setFocusable(true);
+
+        // Wrap JTextPane inside a JScrollPane for scroll functionality
+        JScrollPane scrollPane = new JScrollPane(textPane);
+        scrollPane.setPreferredSize(new Dimension(600, 400)); // Set preferred size
+        add(scrollPane, BorderLayout.CENTER);
+
+    }
+
+    public JTextPane getTextArea() {
+        return textPane;
+    }
+
+    public void setText(String text) {
+        textPane.setText(text);
+    }
+
+    public String getText() {
+        return textPane.getText();
+    }
+}
+
+
+File: src/main/java/org/example/Main.java
+package org.example;
+
+import org.example.texteditor.ui.MainFrame;
+
+import javax.swing.*;
+import java.awt.*;
+
+//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
+// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+public class Main {
+    public static void main(String[] args) {
+        // Run the GUI in the Event-Dispatching Thread
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                // Create and show the main frame of the text editor
+                MainFrame mainFrame = new MainFrame();
+                // Show the frame
+                mainFrame.setVisible(true);
+            }
+        });
+    }
+}
+
+File: src/main/java/org/example/texteditor/ui/MainFrame.java
+package org.example.texteditor.ui;
+
+import javax.swing.*;
+import java.awt.*;
+
+import org.example.texteditor.actions.TextActions;
+import org.example.texteditor.utils.AutoIndent;
+import org.example.texteditor.utils.SyntaxHighlighter;
+
+public class MainFrame extends JFrame {
+
+    // The Main Frame that ties together the UI components
+    private final TextEditorPanel editorPanel;
+    private TextActions textActions;
+    private final JMenuBar menuBar;
+
+    public MainFrame() {
+        setTitle("Text Editor");
+        setSize(800, 600);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        editorPanel = new TextEditorPanel();
+        textActions = new TextActions(editorPanel);
+        setLayout(new BorderLayout());
+        add(editorPanel, BorderLayout.CENTER);
+
+        // Enable auto-indentation
+        // AutoIndent.enableAutoIndent(editorPanel.getTextArea());
+
+        // Enable syntax highlighting
+        SyntaxHighlighter.enableSyntaxHighlighting(editorPanel.getTextArea());
+
+        menuBar = new MenuBar(editorPanel, textActions);
+        setJMenuBar(menuBar);
+
+
+        // Set up the toolbar (if you have one)
+        //FormatToolbar toolbar = new FormatToolbar(editorPanel);
+        //add(toolbar, BorderLayout.NORTH);
+    }
+}
+
+
